@@ -9,6 +9,9 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
+#define RK_GENMASK_VAL(h, l, v) \
+	(GENMASK(((h) + 16), ((l) + 16)) | (((v) << (l)) & GENMASK((h), (l))))
+
 /**
  * Encode variants of iomux registers into a type variable
  */
@@ -60,6 +63,21 @@ enum rockchip_pin_pull_type {
 	PULL_TYPE_IO_DEFAULT = 0,
 	PULL_TYPE_IO_1V8_ONLY,
 	PULL_TYPE_MAX
+};
+
+/**
+ * enum mux route register type, should be invalid/default/topgrf/pmugrf.
+ * INVALID: means do not need to set mux route
+ * DEFAULT: means same regmap as pin iomux
+ * TOPGRF: means mux route setting in topgrf
+ * PMUGRF: means mux route setting in pmugrf
+ */
+enum rockchip_pin_route_type {
+	ROUTE_TYPE_DEFAULT = 0,
+	ROUTE_TYPE_TOPGRF = 1,
+	ROUTE_TYPE_PMUGRF = 2,
+
+	ROUTE_TYPE_INVALID = -1,
 };
 
 /**
@@ -220,6 +238,25 @@ struct rockchip_pin_bank {
 		.pull_type[3] = pull3,					\
 	}
 
+#define PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, FLAG)		\
+	{								\
+		.bank_num	= ID,					\
+		.pin		= PIN,					\
+		.func		= FUNC,					\
+		.route_offset	= REG,					\
+		.route_val	= VAL,					\
+		.route_type	= FLAG,					\
+	}
+
+#define MR_DEFAULT(ID, PIN, FUNC, REG, VAL)	\
+	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROUTE_TYPE_DEFAULT)
+
+#define MR_TOPGRF(ID, PIN, FUNC, REG, VAL)	\
+	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROUTE_TYPE_TOPGRF)
+
+#define MR_PMUGRF(ID, PIN, FUNC, REG, VAL)	\
+	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROUTE_TYPE_PMUGRF)
+
 /**
  * struct rockchip_mux_recalced_data: recalculate a pin iomux data.
  * @num: bank number.
@@ -248,6 +285,7 @@ struct rockchip_mux_route_data {
 	u8 bank_num;
 	u8 pin;
 	u8 func;
+	enum rockchip_pin_route_type route_type : 8;
 	u32 route_offset;
 	u32 route_val;
 };
